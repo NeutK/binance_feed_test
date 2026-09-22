@@ -27,9 +27,11 @@ if [ -e /dev/ptp0 ]; then
   fi
   echo "clock: PTP hardware clock enabled (/dev/ptp0)"
 else
-  echo "clock: WARNING no /dev/ptp0 -- NTP only (~250 us)."
-  echo "       Cross-box races on \`u\` are unreliable below ~0.5 ms on this instance."
-  echo "       Use a Nitro type (c6in/c7g/c7gn/c7i/m7i) with ena driver >= 2.10."
+  echo "clock: no /dev/ptp0 -- this kernel's ena driver exposes no PTP hardware clock"
+  echo "       (check: modinfo ena | grep -i phc). Falling back to AWS Time Sync over"
+  echo "       the local link, which on Nitro is hardware-backed and in practice holds"
+  echo "       single-digit us -- adequate for cross-box races. Confirm with the RMS"
+  echo "       offset printed below; if it stays above ~100 us, do not trust a race."
 fi
 
 chronyc tracking | grep -E "Reference ID|System time|RMS offset" || true

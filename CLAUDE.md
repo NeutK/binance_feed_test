@@ -80,10 +80,13 @@ reads `E`, so the 1 ms quantization baked into `lat_rust_us` does not apply,
 and it works for **spot** exactly as for futures. Report win share plus
 `lag_p50/p90/p99`.
 
-Resolution is bounded by clock sync *between* boxes, not by the venue. Every
-box must have the PTP hardware clock up (`bootstrap.sh` configures it; verify
-with `chronyc sources -v | grep PHC`). On PTP treat < 10 µs as noise; on plain
-NTP treat < 250 µs as noise.
+Resolution is the clock offset *between* boxes, not anything about the venue.
+On Nitro, AWS Time Sync over the local link already gives single-digit µs
+(measured 0.5-6 µs offset, 3-30 µs RMS in ap-northeast-1), so a race is valid
+without `/dev/ptp0`; `bootstrap.sh` enables the PTP hardware clock only when
+the kernel's ena driver exposes one. Read `chronyc tracking` RMS offset on
+every box and ignore differences below ~2x the worst RMS. An RMS above ~100 µs
+means that box is still settling -- wait, or drop it.
 
 `summarize.py` is still right for absolute latency and for checking one box
 over time (`--by hour`) -- just not for ranking.

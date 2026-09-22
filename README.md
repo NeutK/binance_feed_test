@@ -59,10 +59,13 @@ lat_rust_us, hop_us, bid, bid_sz, ask, ask_sz`.
 - **To rank instances, use `race.py`.** It matches updates across boxes on the
   Binance update id `u` and compares each box's own `server_clock_ns`, so it
   never touches Binance's timestamp: no 1 ms quantization, and it works for
-  spot as well as futures. Its resolution is the clock offset *between* boxes,
-  which is why `bootstrap.sh` enables the PTP hardware clock (~1-10 µs) rather
-  than relying on NTP (~250 µs). Verify PTP on every box before comparing:
-  `chronyc sources -v | grep PHC`.
+  spot as well as futures. Its resolution is the clock offset *between* boxes.
+  On Nitro that is already single-digit µs from AWS Time Sync over the local
+  link (measured: 0.5-6 µs system offset, 3-30 µs RMS on c6in/c7gn/c7i in
+  ap-northeast-1) -- a network-NTP figure does not apply. `bootstrap.sh` also
+  enables the PTP hardware clock when the kernel's ena driver exposes one, but
+  that is a bonus, not a prerequisite. Check `chronyc tracking` RMS offset on
+  every box and ignore differences below ~2x the worst RMS.
 - **`lat_rust_us` (futures)** = Binance event time `E` → relay ready-to-send,
   measured inside Rust. This is the ranking metric. `E` has 1 ms resolution and
   is Binance's clock, so compare instances on medians over ≥1 h, not on single

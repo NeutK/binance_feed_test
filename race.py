@@ -151,9 +151,12 @@ def main() -> None:
                 cells += f"{-statistics.median(pair[(b, a)]):>14.0f}"
         print(f"{a:<{w}}" + cells)
 
-    print(f"\nnote: resolution is bounded by clock sync between boxes. With PTP "
-          f"(/dev/ptp0) that is ~1-10 us;\n      with plain NTP it is ~250 us, so "
-          f"ignore differences smaller than that. Check `chronyc tracking` on each box.")
+    print("\nnote: resolution is the clock offset BETWEEN boxes, not anything about the venue.\n"
+          "      On Nitro, chrony against AWS Time Sync (169.254.169.123) is hardware-backed\n"
+          "      and typically holds single-digit us -- a network NTP figure (~250 us) does not\n"
+          "      apply. Read the RMS offset from `chronyc tracking` on every box and treat any\n"
+          "      difference smaller than ~2x the worst RMS as noise. /dev/ptp0 is better still\n"
+          "      but is not exposed by every kernel's ena driver.")
 
 
 if __name__ == "__main__":
