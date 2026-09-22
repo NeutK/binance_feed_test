@@ -45,7 +45,7 @@ identifies instance type + AZ; it becomes the CSV prefix.
 
 ### 3. Verify it is measuring (do this after every start)
 ```bash
-pgrep -af "aws_latency_test/"            # expect: sink + one relay per symbol
+pgrep -af "binance_feed_test/"            # expect: sink + one relay per symbol
 tail -n 6 logs/sink.log                  # a summary line per stream every 60 s
 grep -E "connected|ERROR" logs/fut_BTCUSDT.log | tail   # 5 futures conns connected
 chronyc tracking | grep -E "Reference|System time"      # AWS clock, offset ≪ 1 ms
