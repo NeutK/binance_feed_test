@@ -1,0 +1,5 @@
+rust/target/
+data/
+logs/
+build.log
+__pycache__/

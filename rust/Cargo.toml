@@ -1,0 +1,31 @@
+[package]
+name = "tokyo-server-udp"
+version = "0.1.0"
+edition = "2021"
+autobins = false
+
+[[bin]]
+name = "tokyo_server_udp"
+path = "tokyo_server_udp.rs"
+
+[[bin]]
+name = "tokyo_spot_race"
+path = "tokyo_spot_race.rs"
+
+[[bin]]
+name = "tokyo_server_udp_spot"
+path = "tokyo_server_udp_spot.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+chrono = { version = "0.4", default-features = true, features = ["clock"] }
+futures-util = "0.3"
+rustls = { version = "0.23", features = ["ring"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
+
+[profile.release]
+opt-level = 3
+lto = true
