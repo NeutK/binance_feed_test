@@ -40,6 +40,7 @@ git clone <repo> ~/binance_feed_test && cd ~/binance_feed_test && ./bootstrap.sh
 | `tail -f logs/fut_BTCUSDT.log` | relay's own log: connections, stats, hourly slow-connection check |
 | `python3 summarize.py data/ --by hour` | percentiles from the CSVs |
 | `python3 summarize.py boxA/data boxB/data` | several instances side by side |
+| `python3 race.py boxA/data boxB/data --market fut` | **rank instances**: match on `u`, compare clocks |
 
 ## Files
 
@@ -47,6 +48,7 @@ git clone <repo> ~/binance_feed_test && cd ~/binance_feed_test && ./bootstrap.sh
 |---|---|
 | `data/{label}_{fut,spot}_{SYMBOL}_{YYYYMMDD}.csv` | one row per deduplicated update |
 | `data/{label}_meta.json` | instance type, AZ, AZ-id, kernel, start time |
+| `race.py` | cross-box ranking: joins boxes on `u`, compares `server_clock_ns` |
 | `rust/` | unmodified Tokyo relay sources except default destination `10.0.2.14 → 127.0.0.1` |
 
 CSV columns: `recv_ns, market, symbol, u, exchange_ts_ms, server_clock_ns,
@@ -54,6 +56,13 @@ lat_rust_us, hop_us, bid, bid_sz, ask, ask_sz`.
 
 ## Reading the numbers
 
+- **To rank instances, use `race.py`.** It matches updates across boxes on the
+  Binance update id `u` and compares each box's own `server_clock_ns`, so it
+  never touches Binance's timestamp: no 1 ms quantization, and it works for
+  spot as well as futures. Its resolution is the clock offset *between* boxes,
+  which is why `bootstrap.sh` enables the PTP hardware clock (~1-10 µs) rather
+  than relying on NTP (~250 µs). Verify PTP on every box before comparing:
+  `chronyc sources -v | grep PHC`.
 - **`lat_rust_us` (futures)** = Binance event time `E` → relay ready-to-send,
   measured inside Rust. This is the ranking metric. `E` has 1 ms resolution and
   is Binance's clock, so compare instances on medians over ≥1 h, not on single
@@ -62,10 +71,11 @@ lat_rust_us, hop_us, bid, bid_sz, ask, ask_sz`.
 - **`hop_us`** = relay send → Python receive over loopback. Sanity only; it
   measures the box's scheduler, not Binance.
 - **Spot** bookTicker has **no venue timestamp**. The spot relay puts its own
-  receive time in `exchange_ts_ms`, so spot `lat_rust_us` is decode time only.
-  To rank instances on spot, run two boxes at once and compare, per `u`, which
-  box's `server_clock_ns` is earlier (both clocks AWS-synced). Binance's SBE
-  spot stream has a µs `eventTime` but needs a per-instance API key; dropped.
+  receive time in `exchange_ts_ms` (floored to ms), so spot `lat_rust_us` is
+  decode time plus up to 1 ms of rounding -- do not read it as a latency.
+  Rank spot with `race.py --market spot`, which needs no venue timestamp.
+  Binance's SBE spot stream has a µs `eventTime` but needs a per-instance API
+  key and delivered no earlier than JSON; dropped.
 - Run each candidate for at least a few hours across a busy period; msg rate
   scales ~14× with volatility and tail latency moves with it.
 

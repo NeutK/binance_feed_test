@@ -49,6 +49,7 @@ pgrep -af "binance_feed_test/"            # expect: sink + one relay per symbol
 tail -n 6 logs/sink.log                  # a summary line per stream every 60 s
 grep -E "connected|ERROR" logs/fut_BTCUSDT.log | tail   # 5 futures conns connected
 chronyc tracking | grep -E "Reference|System time"      # AWS clock, offset ≪ 1 ms
+chronyc sources -v | grep PHC                          # PTP up -> cross-box race is valid
 cat data/*_meta.json                      # instance_type, availability_zone, az_id filled
 ```
 Healthy numbers on a Tokyo box: fut ≈ 100–250 msg/s with `lat_us p50` around
@@ -65,15 +66,27 @@ Report as a table: label, instance type, AZ id, hours of data, fut msg/s,
 lat p50 / p90 / p99. Say how long the window was and whether it included a
 busy period (msg rate scales ~14× with volatility; tails move with it).
 
-### 5. Compare instances
-Collect each instance's `data/` directory to one place (scp from the laptop),
-run `summarize.py` with all directories, rank on **fut lat p50**, then look at
-p99. Two instances are only distinguishable if their p50s differ by more than
-the hour-to-hour swing of either one, so always show `--by hour` too.
+### 5. Compare instances  -- use race.py, not summarize.py
+Collect each instance's `data/` directory to one place (scp from the laptop):
 
-For spot, join two instances' spot CSVs on `u` and compare `server_clock_ns`
-(both clocks are AWS-synced): the earlier one had the update first. Report the
-share of updates each box won and the median lead in µs.
+```bash
+python3 race.py boxA/data boxB/data boxC/data --market fut  --symbol BTCUSDT
+python3 race.py boxA/data boxB/data           --market spot --symbol BTCUSDT
+```
+
+`race.py` matches updates across boxes on the Binance update id `u` and
+compares each box's own `server_clock_ns`: the smallest had it first. It never
+reads `E`, so the 1 ms quantization baked into `lat_rust_us` does not apply,
+and it works for **spot** exactly as for futures. Report win share plus
+`lag_p50/p90/p99`.
+
+Resolution is bounded by clock sync *between* boxes, not by the venue. Every
+box must have the PTP hardware clock up (`bootstrap.sh` configures it; verify
+with `chronyc sources -v | grep PHC`). On PTP treat < 10 µs as noise; on plain
+NTP treat < 250 µs as noise.
+
+`summarize.py` is still right for absolute latency and for checking one box
+over time (`--by hour`) -- just not for ranking.
 
 ## Guardrails
 
